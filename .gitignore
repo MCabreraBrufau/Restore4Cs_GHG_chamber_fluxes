@@ -48,6 +48,10 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-#Content of RData_timeseries and of Auxfiles folders
+# Ignore everything inside
 RData_timeseries/*
 Auxfiles/*
+
+# BUT keep the folder itself
+!RData_timeseries/.gitkeep
+!Auxfiles/.gitkeep
