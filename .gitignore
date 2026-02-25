@@ -47,3 +47,7 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+#Content of RData_timeseries and of Auxfiles folders
+RData_timeseries/*
+Auxfiles/*
