@@ -11,7 +11,7 @@
 #NO modification is made to the raw GHG concentration time-series (RData load -> filter for incubation timespan -> flux calculation)
 
 #Input files: 
-  #Rdata files (named after each subsite + gas_analizer), containing CO2 and CH4 concentration time-series
+  #Rdata files (named after each subsite + gas_analizer), containing CO2, CH4 and H20 concentration time-series
   #CH4 auxfile
   #CO2 auxfile
 
@@ -49,10 +49,10 @@ calculate_gas<- c("co2","ch4") #can be c("co2"), c("ch4") or c("co2","ch4")
 
 
 # ---- Directories ----
-#Root path: You have to make sure this is pointing to the right folder on your local machine, with the correct structure. 
-root_path <- "C:/Users/Miguel/Dropbox/GHG_bestflux_calculation" 
+#Root path: You have to make sure this is pointing to the right folder on your local machine, by default, the repository folder is selected. If you want a different folder, make sure it contains the appropriate subfolders "Auxfiles" and "RData_timeseries" with the corresponding required data files.
+root_path <-dirname(rstudioapi::getSourceEditorContext()$path)
 
-#Path to Rdata files, containing CO2 and CH4 timeseries (UTC time) named per sampling event (subsite) and gas analyzer
+#Path to Rdata files, containing CO2 and CH4 timeseries (UTC time) named per sampling event (subsite) and gas analyzer.
 RData_path <- paste0(root_path, "/RData_timeseries") 
 
 #Path to CO2 and CH4 auxfiles
@@ -61,8 +61,8 @@ auxfile_path<- paste0(root_path,"/Auxfiles/")
 #Set results_path for computed fluxes
 results_path <- paste0(root_path,"/Results/")
 #Create folder if it does not exist
-if (!dir.exists(plots_path)) {
-  dir.create(plots_path, recursive = TRUE)
+if (!dir.exists(results_path)) {
+  dir.create(results_path, recursive = TRUE)
 }
 #set plots_path for plots
 plots_path<- paste0(results_path,"Incubation_plots/")
@@ -89,7 +89,7 @@ if (is.null(desc$RemoteSha)) {
   )$sha
   
   if (installed_sha != latest_sha) {
-    stop(
+    warning(
       "goFlux is out of date.\n",
       "Installed: ", installed_sha, "\n",
       "Latest:    ", latest_sha, "\n",
@@ -145,9 +145,9 @@ co2_auxfile <- read.csv(file = paste0(auxfile_path,"co2_auxfile.csv"))
 #CH4 auxfile:
 ch4_auxfile <- read.csv(file = paste0(auxfile_path,"ch4_auxfile.csv"))
 
+#Necessary modifications: 
 #transform start.time (character) to POSIXct
 #add "sampling" column to match RData file names
-
 co2_auxfile <- co2_auxfile %>%
   mutate(start.time = as.POSIXct(round(as.POSIXct(start.time,tz = "UTC"),"sec")),#round start.time to nearest second
          sampling=if_else(gas_analiser=="LI-COR", paste0(subsite,"_LI-7810"), #Modify for LI-COR

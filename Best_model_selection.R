@@ -1,6 +1,5 @@
 #Selection criteria for flux best.model
 
-
 # ---
 # Authors: Miguel Cabrera
 # Project: "RESTORE4Cs"
@@ -25,8 +24,6 @@
 #HM.AICc of must be below LM.AICc (otherwise default to LM)
 
 
-#______________----
-#CH4 Selection-----
 
 #Clear Global Environment
 rm(list = ls())
@@ -42,14 +39,13 @@ auxfile_path<- paste0(root_path,"/Auxfiles/")
 results_path <- paste0(root_path,"/Results/")
 
 
-
-
 #Packages and functions----------
+renv::restore()
 library(tidyverse)
 library(ggExtra)
 
 
-#goFlux::best.flux() calculates a rounded version of the MDF column, the limit under which a flux cannot be said to be significantly different from cero (based on instrument precission, duration of incubation and chamber geometry). We reproduce this MDF.lim here using exactly the same approach used in the goFlux best.flux() function. 
+#goFlux::best.flux() calculates a rounded version of the MDF (minimum detectable flux) column, the limit under which a flux cannot be said to be significantly different from cero (based on instrument precission, duration of incubation and chamber geometry). We reproduce this MDF.lim here using exactly the same approach used within the goFlux best.flux() function. 
 nb.decimal = function(x) {
   if (length(x) == 0) 
     return(numeric())
@@ -61,6 +57,9 @@ nb.decimal = function(x) {
   x_nchr
 }
 
+
+#______________----
+#CH4 Selection-----
 
 #1. Load results------
 
@@ -541,9 +540,9 @@ write.csv(ch4_bestflux_formated, file = paste0(results_path, "ch4_bestflux.csv")
 #______________----
 #CO2 Selection-----
 
-#IMPLEMENT same goflux criteria that for CH4 re-defining hard thresholds for g.fact based on co2 incubation inspections.  
+#IMPLEMENT same goflux criteria used for CH4, re-defining hard threshold for g.fact based on co2 incubation inspections.  
 
-#Clean global environment, leaving the data-paths and "nb.decimal" function only: 
+#Clean global environment of CH4 results, leaving only the required data-paths and "nb.decimal" function: 
 rm(list = setdiff(ls(), c("dropbox_root", "auxfile_path", "results_path","nb.decimal")))
 
 
@@ -557,19 +556,6 @@ co2_flux<- read.csv(paste0(results_path,"all_co2flux.csv"))
 
 
 #Reproduce best.flux MDF.lim
-#goFlux::best.flux() calculates a rounded version of the MDF column, the limit under which a flux cannot be said to be significantly different from cero (based on instrument precission, duration of incubation and chamber geometry). We reproduce this MDF.lim here using exactly the same approach used in the goFlux best.flux() function. 
-
-nb.decimal = function(x) {
-  if (length(x) == 0) 
-    return(numeric())
-  x_nchr = x %>% abs() %>% as.character() %>% nchar() %>% 
-    as.numeric()
-  x_int = floor(x) %>% abs() %>% nchar()
-  x_nchr = x_nchr - 1 - x_int
-  x_nchr[x_nchr < 0] = 0
-  x_nchr
-}
-
 co2_flux<- co2_flux %>% 
   mutate(MDF.lim = ifelse(nb.decimal(signif(MDF, 1)) != 0, signif(MDF, 2), round(MDF, 1)))
 
