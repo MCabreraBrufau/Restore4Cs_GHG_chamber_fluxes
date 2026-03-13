@@ -40,6 +40,9 @@
 #make LM and HM flux estimates highly unreliable). total.flux estimate is 
 #accompanied by SE (standard error) for consistency with goFLux LM and HM estimates.
 
+#Package libraries are managed through Renv, so the exact version of the packages used to 
+#develop the script are installed automatically for this project. This script uses the 
+#goFlux package from GitHub (commit sha: "67c276d87d984d55b70d7b756ad702d63dbf2038").
 
 #Clear Global Environment
 rm(list = ls())
