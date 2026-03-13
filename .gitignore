@@ -51,7 +51,9 @@ rsconnect/
 # Ignore everything inside
 RData_timeseries/*
 Auxfiles/*
+Results/*
 
 # BUT keep the folder itself
 !RData_timeseries/.gitkeep
 !Auxfiles/.gitkeep
+!Results/.gitkeep

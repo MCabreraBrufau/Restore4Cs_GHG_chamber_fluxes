@@ -7,24 +7,38 @@
 
 
 # --- Description----
-#This script uses the goFlux package to produce (from raw GHG concentration time-series and CO2 and CH4 auxfiles) three flux estimates (total.flux, LM.flux, HM.flux). 
-#NO modification is made to the raw GHG concentration time-series (RData load -> filter for incubation timespan -> flux calculation)
+#This script uses the goFlux package to produce (from raw GHG concentration 
+#time-series and CO2 and CH4 auxfiles) three flux estimates (total.flux, LM.flux,
+#HM.flux) for static chamber incubations performed within project RESTORE4Cs. 
 
-#Input files: 
-  #Rdata files (named after each subsite + gas_analizer), containing CO2, CH4 and H20 concentration time-series
-  #CH4 auxfile
-  #CO2 auxfile
+#No modification is made to the raw GHG concentration time-series (RData load ->
+#filter for incubation timespan -> flux calculation)
+
+#Input files (available at https://doi.org/10.5281/zenodo.18803756)
+#Rdata files, containing CO2, CH4 and H20 concentration time-series
+#ch4_auxfile.csv
+#co2_auxfile.csv
 
 #Output files:
-  #PDF files with incubation plots (for CO2 and CH4 separately) for each subsite
-  #all_co2flux.csv: csv file with all CO2 flux estimates (3 estimates + ancillary data per incubation)
-  #all_ch4flux.csv: csv file with all CH4 flux estimates (3 estimates + ancillary data per incubation)
+#PDF files with incubation plots (for CO2 and CH4 separately) for each subsite
+#all_co2flux.csv: csv file with all CO2 flux estimates (3 estimates + ancillary
+#data per incubation)
+#all_ch4flux.csv: csv file with all CH4 flux estimates (3 estimates + ancillary
+#data per incubation)
 
-#Ancillary data per incubation in all_'ghg'flux.csv files is composed of parameters describing the structure of raw-data imported and of data used for flux calculation (incubation duration, total datapoints, and summary of delta-time between datapoints: average, sd, min and max Dt, in seconds).
+#Ancillary data per incubation in all_'ghg'flux.csv files is composed of parameters
+#describing the structure of raw-data imported and of data used for flux calculation 
+#(incubation duration, total datapoints, and summary of delta-time between 
+#datapoints: average, sd, min and max Dt, in seconds).
 
-#3 flux estimate methods for each incubation: LM, HM (goFlux package) and total.flux (custom).
+#There are 3 flux estimate methods for each incubation: LM, HM (goFlux package) 
+#and total.flux (custom).
 
-#total.flux is calculated using the mean concentration difference (first vs last 10s, and the elapsed time between these means). This ensures an more appropriate estimate of GHG flux when non-linear patterns caused by ebullition exist (Which make LM and HM flux estimates highly unreliable). total.flux estimate is accompanied by SE (standard error) for consistency with goFLux LM and HM estimates.
+#total.flux is calculated using the mean concentration difference (first vs last
+#10s, and the elapsed time between these means). This ensures an more appropriate 
+#estimate of GHG flux when non-linear patterns caused by ebullition exist (Which
+#make LM and HM flux estimates highly unreliable). total.flux estimate is 
+#accompanied by SE (standard error) for consistency with goFLux LM and HM estimates.
 
 
 #Clear Global Environment
@@ -34,11 +48,13 @@ rm(list = ls())
 #Options------
 
 #1st. subset auxfiles to run only the script for a subset of the incubations
-#Add in pattern something to match in auxfiles UniqueID (via grepl function), leave as empty pattern<- "" to calculate full dataset
+#Add in pattern something to match in auxfiles UniqueID (via grepl function), 
+#leave as empty pattern<- "" to calculate full dataset
 pattern<- ""
 
 #2nd. Produce plots for fluxes?
-#set as FALSE to skip plotting of fluxes into pdf files (much quicker calculation)
+#set as FALSE to skip plotting of fluxes into pdf files (execution time: 
+#with plots ~45 minutes, without plots ~10 minutes)
 produce_plots<- T
 
 
@@ -49,10 +65,14 @@ calculate_gas<- c("co2","ch4") #can be c("co2"), c("ch4") or c("co2","ch4")
 
 
 # ---- Directories ----
-#Root path: You have to make sure this is pointing to the right folder on your local machine, by default, the repository folder is selected. If you want a different folder, make sure it contains the appropriate subfolders "Auxfiles" and "RData_timeseries" with the corresponding required data files.
+#Root path: You have to make sure this is pointing to the right folder on your 
+#local machine, by default, the repository folder is selected. If you want a 
+#different folder, make sure it contains the appropriate subfolders "Auxfiles" 
+#and "RData_timeseries" with the corresponding required data files.
 root_path <-dirname(rstudioapi::getSourceEditorContext()$path)
 
-#Path to Rdata files, containing CO2 and CH4 timeseries (UTC time) named per sampling event (subsite) and gas analyzer.
+#Path to Rdata files, containing CO2 and CH4 timeseries (UTC time) named per 
+#sampling event (subsite) and gas analyzer.
 RData_path <- paste0(root_path, "/RData_timeseries") 
 
 #Path to CO2 and CH4 auxfiles
@@ -72,47 +92,21 @@ if (!dir.exists(plots_path)) {
 }
 
 
-#Is goFlux up-to-date?----
-#Check goFlux version: and warn if not up-to-date 
-#For reproducibility: this script was developed using the goFlux sha: "67c276d87d984d55b70d7b756ad702d63dbf2038"
-{desc <- packageDescription("goFlux")
-
-if (is.null(desc$RemoteSha)) {
-  warning("goFlux was not installed from GitHub; cannot check latest version.")
-} else {
-  installed_sha <- desc$RemoteSha
-  latest_sha <- gh::gh(
-    "/repos/{owner}/{repo}/commits/{ref}",
-    owner = "Qepanna",
-    repo  = "goFlux",
-    ref   = "HEAD"
-  )$sha
-  
-  if (installed_sha != latest_sha) {
-    warning(
-      "goFlux is out of date.\n",
-      "Installed: ", installed_sha, "\n",
-      "Latest:    ", latest_sha, "\n",
-      "Please update intentionally."
-    )
-  }else{
-    message("OK: Latest goFlux version is already installed with sha: ", installed_sha)
-    rm(installed_sha,latest_sha,desc)}
-}
-}
-
 
 
 
 #Packages and functions-----
+#Restore environment (checks and, if needed, installs exact package versions used)
 renv::restore()
+
+#Load script packages
 library(goFlux)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 
 
-#Load function
+#Create load_sampling function
 #Function to load data from each RData sampling event (subsite+gas_analizer).
 #Maintains original data frequency and exact concentration (no reframing/resampling/interpolation/rouding)
 #Requires auxfiles to have a column named "sampling" that is built as paste0(subsite,"_",gs_suffix)
@@ -161,7 +155,7 @@ ch4_auxfile <- ch4_auxfile %>%
   rename(flux_decision=ch4_decission)
 
 
-#subset auxfiles (Optional) ------
+#Apply optional filters------
 
 #Apply filter defined in section "OPTIONS" 
 co2_auxfile<- co2_auxfile %>% 
@@ -174,7 +168,8 @@ ch4_auxfile<- ch4_auxfile %>%
 
 #Prepare loop ------
 
-#Obtain total number of incubations to calculate (sum of incubations in auxfiles, depending on which gas should be calculated), to use in loop progress messages
+#Obtain total number of incubations to calculate (sum of incubations in auxfiles,
+#depending on which gas should be calculated), to use in loop progress bar
 incub_tocalc <- 0
 
 if ("co2" %in% calculate_gas) {
@@ -188,6 +183,9 @@ if ("ch4" %in% calculate_gas) {
 #Initialize number of incubations calculated (updates within loop)
 incub_calculated<- 0
 
+# Print a progress bar
+pb = txtProgressBar(min = 0, max = incub_tocalc, initial = 0, style = 3)
+
 #GHG Flux loop------
 for(gs in calculate_gas){
   
@@ -200,12 +198,10 @@ for(gs in calculate_gas){
     gs_auxfile<- ch4_auxfile
     goflux_gs_string <- "CH4dry_ppb"}
   else{stop("Incorrect calculate_gas option")}
-
+  
   ##Subsite loop ----
   for(subs in unique(gs_auxfile$subsite)){
     
-    #Message
-    message(paste0("Processing ",toupper(gs), " of subsite ",subs))
     
     #Subset auxfile for subsite:
     gs_auxfile_subs<- gs_auxfile %>% filter(subsite==subs)
@@ -220,7 +216,6 @@ for(gs in calculate_gas){
     #Sampling loop ----
     #Sampling loop (some subsites contain measures performed with different analyzers)
     for(s in unique(gs_auxfile_subs$sampling)){
-      
       #Subset auxfile for sampling s
       gs_auxfile_s<- gs_auxfile_subs %>% filter(sampling==s)
       
@@ -268,7 +263,7 @@ for(gs in calculate_gas){
                     mydata_sd_Dt = sd(diff(POSIX.time), na.rm=T), #SD time-step
                     mydata_min_Dt = min(diff(POSIX.time), na.rm=T), #MIN time-step
                     mydata_max_Dt = max(diff(POSIX.time), na.rm=T) #MAX time-step
-                    )
+          )
         
         ##GoFlux call------
         #Use goFlux function to obtain the calculated flux for LM and HM.
@@ -319,7 +314,9 @@ for(gs in calculate_gas){
         }
         
         ##calculate total.flux-----
-        #total.flux is calculated based on concentration difference using the averages during the first and last 10s of incubation, divided by the elapsed time between the center of those windows, and multiplied by goFlux flux term.
+        #total.flux is calculated based on concentration difference using the 
+        #averages during the first and last 10s of incubation, divided by the 
+        #elapsed time between the center of those windows, and multiplied by goFlux flux term.
         
         #define time variables and flux.term
         t.win<- 10
@@ -361,14 +358,12 @@ for(gs in calculate_gas){
           total.flux = total.flux,
           total.flux.se = total.flux.se
         )
-          
+        
         # Update incub progress count
         incub_calculated <- incub_calculated + 1
-        # Display progress
-        message(
-          paste0("Overall progress: ", round((incub_calculated / incub_tocalc) * 100, 2), "%")
-        )
-          
+        # Update progress bar
+        setTxtProgressBar(pb, incub_calculated)
+        
         ##Join Outputs----
         #Combine fluxes for UniqueID i
         fluxes_i<- gs_auxfile_i %>% 
@@ -378,7 +373,8 @@ for(gs in calculate_gas){
           left_join(goflux_i, by="UniqueID")
         
         #Append results from UniqueID i to rest (gas-specific) 
-        #Add fluxes_i to target combined data.frame (co2 or ch4), creating these objects in first execution of each gas.
+        #Add fluxes_i to target combined data.frame (co2 or ch4), creating these 
+        #objects in first execution of each gas.
         if (gs == "co2") {
           if (!exists("all_co2flux")) {
             all_co2flux <- fluxes_i
@@ -394,14 +390,13 @@ for(gs in calculate_gas){
         }
         
       }#end of UniqueID loop
-
+      
     }#end of sampling loop
     
     #Close and save subsite pdf for plots (if plots are to be produced)
     if(produce_plots){
-      message(paste0("Saving plot for subsite ", subs))
       dev.off()
-      }
+    }
     
   }#end of subsite loop
   
@@ -443,10 +438,10 @@ for(gs in calculate_gas){
       "Flux calculation completed: ",
       paste(msg_parts, collapse = " | ")
     )
+    #Close progress bar at completion
+    close(pb)
   }
-  
-  
   
 }#End of gas loop
 
-
+#Warning messages are produced within the loop when trying to plot HM line in timeseries which HM.flux resulted in NA.

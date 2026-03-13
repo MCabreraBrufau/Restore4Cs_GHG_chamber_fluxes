@@ -41,9 +41,10 @@ results_path <- paste0(root_path,"/Results/")
 
 #Packages and functions----------
 renv::restore()
-library(tidyverse)
-library(ggExtra)
-
+# library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
 
 #goFlux::best.flux() calculates a rounded version of the MDF (minimum detectable flux) column, the limit under which a flux cannot be said to be significantly different from cero (based on instrument precission, duration of incubation and chamber geometry). We reproduce this MDF.lim here using exactly the same approach used within the goFlux best.flux() function. 
 nb.decimal = function(x) {
@@ -236,14 +237,14 @@ ch4_todecide %>%
 
 
 #Inspect against k.ratio 
-ggMarginal(
+
   ch4_todecide %>%
     ggplot(aes(x=AICc_weight_HM,y=k.ratio, col=rel_reduct_MAE_HM>0.05))+
     geom_point()+
     # geom_hline(yintercept=1.25)+
     labs(col=NULL)+
     scale_x_continuous(name="AICc weight for HM, probability of HM being best")
-)
+
 
 
 
@@ -395,13 +396,11 @@ ch4_ebullitive<- ch4_flux %>%
   filter(UniqueID%in%c(incub_ebu_visual)) %>% #Contains ebullition (visual)
   mutate(linear_total_ratio=LM.flux/total.flux)
 
-ggMarginal(
   ch4_ebullitive %>% 
     filter(LM.r2>0.95) %>% 
     ggplot(aes(x=LM.r2, y=linear_total_ratio))+
     geom_point()+
     geom_vline(xintercept = 0.99)
-)
 
 #Threshold to chose LM over total.flux will be set at LM.r2 0.99, as below this threshold there are a lot of incubations whose linear flux deviates more than 10% from the total.flux
 
@@ -710,14 +709,13 @@ co2_todecide %>%
 
 
 #Inspect against k.ratio 
-ggMarginal(
+
   co2_todecide %>%
     ggplot(aes(x=AICc_weight_HM,y=k.ratio, col=rel_reduct_MAE_HM>0.05))+
     geom_point()+
     # geom_hline(yintercept=1.25)+
     labs(col=NULL)+
     scale_x_continuous(name="AICc weight for HM, probability of HM being best")
-)
 
 
 
