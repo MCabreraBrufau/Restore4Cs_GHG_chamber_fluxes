@@ -6,22 +6,50 @@
 # ---
 
 # --- Description----
-#Description: this script is used to set the selection criteria to chose the best.model for CH4 and CO2 instantaneous flux (criteria below). And to produce the 'ghg'_bestflux.csv files for CH4 and CO2 static chamber incubations from project Restore4Cs. Visual inspection of incubation timeseries (pdf plots created by Fluxes_from_RData.R script) is used to confirm that best-model selection criteria is appropriate. 
 
-#Choosing a best.flux follows this logic (Hard-thresholds set after inspection performed in this script): 
+#This script is used to chose a best flux estimate model for every UniqueID co2 and ch4  
+#static chamber incubation from the RESTORE4Cs project. The best-model is chosen between the 
+#three alternative models (LM, HM, total.flux) calculated in Fluxes_from_RData.R script. 
 
-#0. If incubation is wrong (discarded due to artefacts or wrong manipulation), no model is selected as as best.model and a note is provided in best.model.flag. 
-#1. IF NO bubbles are found (Visual inspection) --> GOflux criteria 
-#2. IF bubbles are found (visual inspection) and LM.r2 < 0.99 --> use total.flux as best.model
-#3. IF bubbles are found (visual inspection) and LM.r2 >= 0.99--> use LM as best.model
+#Best-model selections are saved in 'ghg'_bestflux.csv files.
 
-#GOflux criteria: For HM to be chosen as best flux, all criteria below must be met.
-#HM.flux must exist to be chosen (is.na(HM.flux)--> LM)
-#MDF fluxes are always LM (LM.flux<=MDF.lim --> LM)
-#Kappa must be below maximum (HM.k>=k.max   --> LM)
-#g.fact must be below threshold (CO2.g.fact<4, CH4.g.fact<3, otherwise ---> LM)
-#HM.MAE must be at least 5% better than LM.MAE (otherwise default to LM)
-#HM.AICc of must be below LM.AICc (otherwise default to LM)
+#Selection criteria is based on visual time-series visual inspection (to determine overall 
+#validity and presence/absence of ebullition) and on comparison of LM and HM regression quality 
+#parameters and flux relative magnitudes (see below). Final thresholds for criteria were 
+#determined after visual inspection of incubation GHG time-series on pdf plots created by 
+#Fluxes_from_RData.R script. 
+
+#This script is organized in two similar sections: CH4 selection and CO2 selection. 
+#Within each of these sections, the gas-specific data is loaded and the suitability of the 
+#selection criteria and thresholds is tested by  visually inspecting the relevant time-series 
+#plots (pdf files in root_path/Results/Incubation_plots). The result of these inspections are 
+#recorded in this script.
+
+
+#Selection criteria----
+
+#Choosing a best.flux follows the below sequential logic for both CH4 and CO2 time-series. 
+#Note that ebullition inspection is only applicable to CH4 time-series (CO2 time-series with 
+#strong artefacts resulting from ebullition are discarded).
+
+#0. IF time-series was marked as "discard" --> best.model = "None appropriate" 
+
+#1. IF bubbles are found and LM.r2 < 0.99 --> best.model = "total.flux"
+
+#2. IF bubbles are found and LM.r2 >= 0.99 --> best.model = "LM"
+
+#3. IF NO bubbles are found (strictly diffusive dynamics), the following logic applies: 
+#For HM to be chosen as best.model, it must exist, have a "reasonable" curvature, and perform 
+#"substantially" better than LM. In addition, HM should only be considered when incubation 
+#sensitivity allows detection of non-zero flux (MDF). This translates into the following formal 
+#requirements (if 1 or more are violated, LM will be chosen as best.model instead of HM)
+
+    #HM.flux must exist to be chosen (is.na(HM.flux) --> best.model= "LM")
+    #MDF fluxes are always LM (LM.flux <= MDF.lim --> best.model= "LM")
+    #Kappa must be below theoretical maximum (HM.k >= k.max --> best.model= "LM")
+    #g.fact must be below threshold (CO2.g.fact<4, CH4.g.fact<3, otherwise --> best.model ="LM")
+    #HM.MAE must be at least 5% better than LM.MAE (otherwise default to LM)
+    #HM.AICc of must be below LM.AICc (otherwise default to LM)
 
 
 
@@ -29,8 +57,10 @@
 rm(list = ls())
 
 #Directories---------
-#root path: You have to make sure this is pointing to the write folder on your local machine:
-root_path <- "C:/Users/Miguel/Dropbox/GHG_bestflux_calculation" 
+#Root path: You have to make sure this is pointing to the right folder on your 
+#local machine, by default, the repository folder is selected. If you modified the root_path when 
+#executing the Fluxes_from RData.R script, then you must specify the same root_path here:
+root_path <-dirname(rstudioapi::getSourceEditorContext()$path)
 
 #Path to Co2 and Ch4 auxfiles with corrected start.time and duration and with discard decisions:
 auxfile_path<- paste0(root_path,"/Auxfiles/") 
@@ -41,12 +71,18 @@ results_path <- paste0(root_path,"/Results/")
 
 #Packages and functions----------
 renv::restore()
-# library(tidyverse)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(purrr)
+library(stringr)
 
-#goFlux::best.flux() calculates a rounded version of the MDF (minimum detectable flux) column, the limit under which a flux cannot be said to be significantly different from cero (based on instrument precission, duration of incubation and chamber geometry). We reproduce this MDF.lim here using exactly the same approach used within the goFlux best.flux() function. 
+#goFlux::best.flux() calculates a rounded version of the MDF (minimum detectable flux) column in 
+#"all_'ghg'flux.csv, the limit under which a flux cannot be said to be significantly different 
+#from cero (based on instrument precision, duration of incubation and chamber geometry). To 
+#reproduce this MDF.lim using exactly the same approach used within the goFlux::best.flux() 
+#function, we need to define the nb.decimal function:  
+
 nb.decimal = function(x) {
   if (length(x) == 0) 
     return(numeric())
@@ -101,7 +137,8 @@ ch4_mdf_LM<- ch4_4gofluxcriteria %>%
   filter(abs(LM.flux)<=MDF.lim)
 
 
-#MDFs CH4 visually inspected: true "below detection", flat-ish white noise incubations:
+#MDFs CH4 visually inspected: true "below detection", flat-ish white noise incubations, LM is the 
+#most suitable flux estimate for these:
 mdf_inspected<- c("s1-ca-p2-15-v-t-14:54","s1-ca-p2-4-v-d-11:24","s1-ca-p2-4-v-t-11:17","s1-ca-r1-9-v-t-10:57","s1-ca-r1-17-b-d-12:49","s1-ca-r2-1-b-d-08:47","s1-ca-r2-6-v-t-09:50","s1-da-a1-1-b-d-08:22","s1-da-a1-2-v-d-08:46","s1-da-a1-2-v-t-08:38","s1-da-a1-5-v-d-10:01","s1-da-a1-9-b-d-12:23","s1-du-a1-11-b-t-13:12","s1-du-a1-12-v-t-13:27","s1-du-a1-13-v-t-14:07","s1-du-a1-14-v-d-14:32","s1-du-a1-15-v-d-15:01","s1-du-a1-15-v-t-14:52","s1-du-a2-10-b-t-11:21","s1-du-a2-11-v-d-11:49","s1-du-a2-12-v-t-12:06","s1-du-a2-14-b-t-12:50","s1-du-a2-6-v-d-09:18","s1-du-a2-6-v-t-09:09","s1-du-p1-14-v-d-13:13","s1-du-p1-9-v-d-11:37","s1-du-p2-2-v-t-07:39","s1-du-p2-3-o-d-07:56","s1-du-p2-5-b-t-08:39","s1-du-p2-6-v-d-09:00","s1-du-p2-7-o-d-09:16","s1-du-p2-14-v-d-11:51","s1-du-p2-11-v-d-10:43","s1-du-p2-11-v-t-10:36","s1-du-p2-13-v-d-11:31","s1-du-p2-13-v-t-11:24","s1-du-p2-14-v-t-11:43","s1-du-p2-15-v-d-12:17","s1-du-p2-15-v-t-12:09","s1-du-p2-2-v-d-07:48","s1-du-p2-4-v-d-08:23","s1-du-p2-4-v-t-08:12","s1-du-p2-6-v-t-08:52","s1-du-p2-8-v-d-09:36","s1-du-p2-9-b-t-09:44","s1-du-r1-3-v-t-08:24","s1-du-r2-1-v-d-07:29","s1-du-r2-10-v-d-11:03","s1-du-r2-12-v-t-11:34","s1-du-r2-13-v-d-12:21","s1-du-r2-14-v-t-12:33","s1-du-r2-15-v-d-12:56","s1-du-r2-4-b-d-08:20","s1-va-p1-11-v-d-11:52","s1-va-p1-11-v-t-11:45","s1-va-p1-13-v-d-12:48","s1-va-p1-13-v-t-12:41","s1-va-p1-3-b-d-09:20","s1-va-p1-4-b-d-09:30","s1-va-p1-9-v-d-11:22","s1-va-r2-2-b-d-09:33","s1-va-r2-3-v-t-09:41","s1-va-r2-5-v-d-10:22",
                   "s2-ca-a1-4-v-t-09:38","s2-ca-a1-5-v-d-10:15","s2-ca-a1-5-v-t-10:02","s2-ca-a1-6-v-d-10:37","s2-ca-a1-6-v-t-10:30","s2-ca-a1-7-v-d-10:56","s2-ca-a1-7-v-t-10:47","s2-ca-r1-14-v-d-12:21","s2-cu-r1-1-b-d-08:05","s2-cu-r1-2-b-d-08:15","s2-cu-r1-3-b-d-08:28","s2-da-a1-7-b-d-10:36","s2-da-a1-7-b-t-10:41","s2-da-a1-7-v-d-10:28","s2-da-a1-7-v-t-10:20","s2-da-a1-9-b-d-11:27","s2-da-a1-9-b-t-11:21","s2-du-a1-10-v-d-12:11","s2-da-r1-2-v-d-09:22","s2-du-a1-10-v-t-12:04","s2-du-a1-11-v-d-12:28","s2-du-a1-11-v-t-12:22","s2-du-a1-13-v-d-12:58","s2-du-a1-13-v-t-12:53","s2-du-a1-14-v-d-13:16","s2-du-a1-14-v-t-13:11","s2-du-a1-15-v-d-13:35","s2-du-a1-15-v-t-13:29","s2-du-a1-16-v-d-14:05","s2-du-a1-16-v-t-13:57","s2-du-a1-4-v-d-10:13","s2-du-a1-5-b-d-10:30","s2-du-a2-3-v-t-09:34","s2-du-a2-10-b-d-12:03","s2-du-a2-10-b-t-11:50","s2-du-a2-4-v-d-09:57","s2-du-a2-8-v-d-11:19","s2-du-a2-8-v-t-11:13","s2-du-p1-3-o-d-09:31","s2-du-p1-10-b-d-11:29","s2-du-p1-11-v-t-11:44","s2-du-p1-14-v-d-12:42","s2-du-p1-2-v-t-09:15","s2-du-p1-4-v-t-09:49","s2-du-p1-8-b-d-10:56","s2-du-p2-10-v-d-12:14","s2-du-p2-10-v-t-12:09","s2-du-p2-11-v-d-12:34","s2-du-p2-11-v-t-12:27","s2-du-p2-12-v-d-12:46","s2-du-p2-12-v-t-12:41","s2-du-p2-13-b-d-13:01","s2-du-p2-13-b-t-12:54","s2-du-p2-14-v-d-13:16","s2-du-p2-2-v-d-09:41","s2-du-p2-2-v-t-09:33","s2-du-p2-3-o-d-10:11","s2-du-p2-4-b-d-10:32","s2-du-p2-4-b-t-10:25","s2-du-p2-5-o-d-10:43","s2-du-p2-7-v-d-11:31","s2-du-p2-7-v-t-11:21","s2-du-p2-8-v-d-11:47","s2-du-p2-8-v-t-11:41","s2-du-p2-9-b-d-11:59","s2-du-p2-9-b-t-11:55","s2-du-r1-15-v-t-12:55","s2-du-r1-2-v-t-09:35","s2-du-r1-7-v-d-10:54","s2-du-r1-7-v-t-10:41","s2-du-r2-8-o-d-11:11","s2-du-r2-1-v-d-09:29","s2-du-r2-10-v-d-11:48","s2-du-r2-13-v-d-12:59","s2-du-r2-14-v-d-13:16","s2-du-r2-14-v-t-13:09","s2-du-r2-15-v-t-13:25","s2-du-r2-6-v-d-10:40","s2-ri-a2-3-b-d-08:59","s2-ri-a2-9-v-t-10:19","s2-ri-r1-9-v-t-12:33",
                   "s3-ca-a1-9-v-t-10:01","s3-ca-r1-10-v-d-09:53","s3-ca-r1-10-v-t-09:44","s3-ca-r1-15-b-d-11:00","s3-ca-r1-5-v-d-08:42","s3-ca-r1-5-v-t-08:35","s3-cu-r2-2-b-d-07:07","s3-cu-r2-3-b-d-07:18","s3-da-a1-1-b-d-07:07","s3-da-a1-3-b-d-07:51","s3-da-a1-4-v-t-08:05","s3-da-a1-6-v-t-09:10","s3-da-a1-6-b-d-09:23","s3-da-a1-11-b-d-11:29","s3-da-a1-11-v-d-11:21","s3-da-a1-11-v-t-11:12","s3-da-a1-12-b-d-12:09","s3-da-a1-12-v-d-12:00","s3-da-a1-12-v-t-11:51","s3-da-a1-2-v-t-07:17","s3-da-a1-4-b-d-08:22","s3-da-a1-5-b-d-08:55","s3-da-a1-6-v-d-09:17","s3-da-a1-7-b-d-09:40","s3-da-a1-8-b-d-09:59","s3-da-a1-9-b-d-10:19","s3-du-a1-10-v-d-10:42","s3-du-a1-10-v-t-10:33","s3-du-a1-12-v-d-11:30","s3-du-a1-13-v-d-11:47","s3-du-a1-13-v-t-11:41","s3-du-a1-14-v-d-12:05","s3-du-a1-14-v-t-11:58","s3-du-a1-7-b-t-09:28","s3-du-a1-9-v-d-10:19","s3-du-a1-9-v-t-10:09","s3-du-a1-12-v-t-11:23","s3-du-a2-11-b-d-10:55","s3-du-a2-11-b-t-10:49","s3-du-a2-12-v-t-11:09","s3-du-a2-7-v-d-09:23","s3-du-a2-7-v-t-09:14","s3-du-a2-8-v-t-09:37","s3-du-a2-6-v-t-08:53","s3-du-a2-6-v-d-09:01","s3-du-a2-9-b-d-10:09","s3-du-a2-9-b-t-10:02","s3-du-p1-2-o-d-07:47","s3-du-p1-15-v-d-11:31",  "s3-du-p2-11-v-d-11:59","s3-du-p2-11-v-t-11:51","s3-du-p2-12-v-d-12:24","s3-du-p2-12-v-t-12:16","s3-du-p2-15-v-d-13:16","s3-du-p2-15-v-t-13:09","s3-du-p2-2-v-d-08:33","s3-du-p2-2-v-t-08:22","s3-du-p2-3-v-d-08:57","s3-du-p2-4-v-d-09:18","s3-du-p2-4-v-t-09:10","s3-du-p2-8-v-d-11:01","s3-du-p2-8-v-t-10:52","s3-du-r1-2-v-d-07:36","s3-du-r1-2-v-t-07:30","s3-du-r2-5-b-d-09:44","s3-va-p1-13-v-d-11:58","s3-va-p1-5-v-d-09:24","s3-va-p1-5-v-t-09:19",
@@ -128,12 +165,8 @@ kmax_inspected<-c("s1-ca-p1-3-v-d-10:31","s1-ca-p2-3-v-d-10:59","s1-ca-p1-5-v-t-
                   "s3-ca-a1-7-v-d-09:35","s3-da-a1-2-v-d-07:25","s3-da-a1-4-v-d-08:12","s3-du-a2-3-v-t-07:43","s3-du-p1-6-v-d-08:51","s3-du-p1-15-v-t-11:24","s3-du-r1-1-v-t-07:15","s3-du-r1-9-v-t-09:18","s3-ri-r1-9-b-d-12:22","s3-va-p1-12-b-d-11:38",
                   "s4-ca-p1-14-v-d-11:52","s4-ca-r2-2-v-d-07:27","s4-cu-r1-2-b-d-07:13","s4-da-a1-4-v-t-08:16","s4-du-a2-15-v-d-13:04","s4-du-p1-4-v-d-08:45","s4-du-p1-11-b-d-10:30","s4-du-p2-14-v-d-12:08","s4-du-p2-15-v-d-12:25","s4-du-r2-2-v-d-08:36","s4-du-r2-10-v-t-10:26","s4-du-r2-11-v-d-10:56","s4-ri-a1-5-b-d-07:53","s4-ri-a2-7-v-d-07:58","s4-ri-p1-1-v-d-06:59","s4-ri-p1-4-v-t-07:38","s4-ri-p1-5-o-d-07:54","s4-ri-p1-11-v-t-09:30","s4-va-p1-12-v-d-10:18","s4-va-p1-14-v-d-10:47","s4-va-p2-10-v-t-08:42","s4-va-p2-14-v-t-09:27","s4-va-r2-3-v-d-08:27","s4-va-r2-11-v-d-10:15")
 
-
-tocropand_reinspect<- c(
-                        )
-
 #Any kmax not inspected?
-ch4_kmax %>% filter(!UniqueID%in%c(kmax_inspected,tocropand_reinspect)) %>% pull(UniqueID)
+ch4_kmax %>% filter(!UniqueID%in%c(kmax_inspected)) %>% pull(UniqueID)
 
 #Any kmax_inspected that shouldnt?
 kmax_inspected[!kmax_inspected%in%ch4_kmax$UniqueID]
@@ -142,9 +175,9 @@ kmax_inspected[!kmax_inspected%in%ch4_kmax$UniqueID]
 
 ##2.3. Inspect g.fact ------
 
-#Filter the dataset to remove already inspected incubations (mdf, kappamax, tocrop)
+#Filter the dataset to remove already inspected incubations (mdf, kappamax)
 ch4_gfact<-ch4_4gofluxcriteria %>%
-  filter(!UniqueID%in%c(mdf_inspected,kmax_inspected,tocropand_reinspect)) 
+  filter(!UniqueID%in%c(mdf_inspected,kmax_inspected)) 
 
 #lets see what is the highest g.fact of the best-performing HM models (best 50%)
 ch4_gfact %>% 
@@ -163,7 +196,7 @@ ch4_gfact %>%
 gfact_inspected<- c("s1-ca-p1-5-v-d-11:08","s1-ca-p1-8-v-t-12:12","s1-ca-p1-11-v-d-13:35","s1-ca-p1-14-v-d-14:49","s1-ca-p1-15-v-t-15:02","s1-ca-r1-3-v-d-09:33","s1-ca-r2-6-v-d-09:56","s1-ca-r2-9-v-d-10:56","s1-da-r1-5-o-d-09:05","s1-du-p1-8-v-d-11:13","s1-du-r1-9-v-t-09:54","s1-ri-p2-1-v-d-09:37","s1-ri-r1-9-b-t-11:39","s1-ri-r1-10-v-t-11:56","s1-ri-r1-13-v-t-12:48","s1-va-a1-7-b-d-12:37","s1-va-p2-8-b-t-11:12","s2-ca-p1-6-v-t-10:06","s2-ca-p2-8-b-t-10:50","s2-ca-p2-9-v-d-11:09","s2-ri-a1-1-b-t-08:50","s2-ri-a1-13-b-t-10:57","s2-ri-p2-3-v-t-09:09","s2-ri-p2-3-v-d-09:15","s2-ri-p2-8-v-d-10:58","s3-ca-a1-10-v-d-10:23","s3-cu-p1-2-v-d-06:50","s3-du-p1-9-v-d-09:38","s3-ri-r1-8-v-d-11:36","s3-ri-r1-14-v-t-14:12","s4-ca-a1-12-v-d-12:55","s4-ca-p1-8-v-d-09:50","s4-ca-p2-10-v-t-12:50","s4-ca-r2-7-v-d-08:46","s4-du-a1-7-v-d-10:09","s4-du-a1-11-v-t-11:40","s4-du-a1-12-v-d-12:04","s4-du-p2-2-v-d-08:16","s4-ri-a1-10-b-d-08:40","s4-ri-r2-4-v-t-07:32","s4-va-p1-6-b-d-08:47","s4-va-p2-3-v-t-07:19","s4-va-p2-13-v-t-09:11","s4-du-a1-15-v-t-12:53","s4-va-a1-3-b-d-09:10","s1-ca-r2-15-v-d-13:41","s1-du-p1-5-v-t-09:56","s1-du-p1-14-v-t-13:07","s1-ri-p2-11-v-d-12:44","s1-ri-r1-2-v-d-09:58","s1-ri-r1-3-v-t-10:06","s2-ca-p1-1-v-t-08:27","s2-ri-a1-2-b-d-09:15","s2-ri-r1-7-v-t-11:59","s3-du-r2-11-v-d-11:30","s4-ca-p1-15-v-t-12:13","s4-ca-p2-11-v-t-13:08","s4-du-p1-6-v-t-09:11","s4-ri-a1-2-b-d-07:22","s4-ri-r1-5-v-t-08:11","s4-ri-r1-6-v-d-08:35","s4-va-p1-10-v-t-09:34","s1-ca-r2-15-v-t-13:34","s1-ca-p1-6-v-d-11:24","s1-cu-a1-13-v-d-10:47","s1-du-p1-7-b-d-10:45","s1-du-p1-10-v-t-11:57","s1-ri-a1-8-b-t-12:05","s1-ri-r1-15-v-d-13:35","s1-va-a1-1-o-d-09:49","s2-cu-p1-11-v-d-09:57","s2-du-a1-1-o-d-09:21","s2-va-p1-6-o-d-10:34","s2-va-r2-1-b-d-09:52","s3-da-p2-9-v-t-10:51","s3-du-r1-11-v-t-09:53","s3-du-r2-7-o-d-10:12","s3-va-a1-2-v-d-09:13","s4-du-a2-7-v-d-10:19","s4-du-a2-11-v-t-11:34","s4-du-p1-13-v-d-11:03","s4-du-r2-6-o-d-09:19","s1-ca-p1-1-o-d-09:25","s3-da-p1-14-v-d-11:58","s4-ca-a1-12-v-t-12:48","s4-du-a2-10-v-d-11:19","s4-du-a2-12-v-d-12:00","s4-du-a2-14-v-d-12:47","s4-ri-a1-3-b-d-07:32","s4-ri-a2-11-b-d-08:54")#gfact>=3
 
 
-#To fix and re-inspect: too long incubations, aproaching asyntotic concentration
+#To crop and re-inspect: too long incubations, approaching asymptotic concentration, causing LM to strongly underestimate flux (leading to very high g.fact) 
 toreinspect_gfact<- c(
                       )
 
@@ -178,7 +211,7 @@ ch4_gfact %>%
 gfact_inspected[!gfact_inspected%in%ch4_gfact$UniqueID]
 
 
-#g.fact threshold of 3 is the optimal solution, many true non-linear with g.fact >2.5
+#g.fact threshold of 3 is the optimal solution, many 'true' non-linear with g.fact >2.5
 
 
 ##2.4. AICc & MAE improvement-----
@@ -190,7 +223,7 @@ gfact_inspected[!gfact_inspected%in%ch4_gfact$UniqueID]
 #After checking that g.fact and mdf criteria are appropriate, subset dataset that needs a decision between LM and HM:
 ch4_todecide<- ch4_4gofluxcriteria %>% #Non-wrong, non-ebullitive (auto or visual)
   filter(!is.na(HM.flux)) %>% #Non-NA HM (nothing to decide in those cases, default LM)
-  filter(!UniqueID%in%c(mdf_inspected,kmax_inspected,tocropand_reinspect, gfact_inspected, toreinspect_gfact))#Non-mdf, non-kmax, non-gfact>3
+  filter(!UniqueID%in%c(mdf_inspected,kmax_inspected, gfact_inspected, toreinspect_gfact))#Non-mdf, non-kmax, non-gfact>3
 
 
 #Inspect AICc for selection criteria (using AICc weight)
@@ -248,7 +281,7 @@ ch4_todecide %>%
 
 
 
-#Inspect cases with better AICc for HM, but low reduction in MAE (<5%) and with relatively big differences in flux (gfact>1.5)
+#Inspect cases with better AICc for HM, and relatively big flux differences (gfact>1.5), both hinting at to HM being better, but with low reduction in MAE (<5%).
 
 #Inspect to decide 
 ch4_lowMAEimprovement<-ch4_todecide %>% 
