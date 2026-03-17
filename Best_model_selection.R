@@ -12,7 +12,20 @@
 #chosen between the three alternative models (LM, HM, total.flux) calculated in 
 #Fluxes_from_RData.R script. 
 
-#Best-model selections are saved in 'ghg'_bestflux.csv files.
+
+#Input files (stored in https://doi.org/10.5281/zenodo.18803756 or produced by 
+#Fluxes_from_RData.R):
+#all_ch4flux.csv
+#ch4_auxfile.csv
+#ebullition_inspection.csv
+#all_co2flux.csv
+#co2_auxfile.csv
+#PDF files with incubation plots, for visual inspection (not required by script)
+
+#Output files:
+#ch4_bestflux.csv
+#co2_bestflux.csv
+
 
 #Selection criteria is based on visual time-series visual inspection (to determine overall 
 #validity and presence/absence of ebullition) and on comparison of LM and HM regression quality 

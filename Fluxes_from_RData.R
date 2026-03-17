@@ -14,7 +14,7 @@
 #No modification is made to the raw GHG concentration time-series (RData load ->
 #filter for incubation timespan -> flux calculation)
 
-#Input files (available at https://doi.org/10.5281/zenodo.18803756)
+#Input files (stored in https://doi.org/10.5281/zenodo.18803756)
 #Rdata files, containing CO2, CH4 and H20 concentration time-series
 #ch4_auxfile.csv
 #co2_auxfile.csv
