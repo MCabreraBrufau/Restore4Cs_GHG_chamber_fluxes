@@ -26,7 +26,7 @@ Model selection follows a sequential set of criteria to determine whether **LM**
 1. Incubations flagged due to artifacts or manipulations that preclude flux calculation are excluded.
 
 2. For **CH₄ time-series with ebullitive dynamics** (visually assessed), the **total.flux** estimate is selected instead of **LM**, unless **LM.r² ≥ 0.99**.  
-   The **HM model is never considered for ebullitive time-series**.
+   The HM model is never considered for ebullitive time-series.
 
 3. For the remaining time-series (CO₂ and CH₄ without ebullition), the best model is selected between **LM** and **HM**.
 
@@ -35,9 +35,9 @@ Model selection follows a sequential set of criteria to determine whether **LM**
    - HM produces a valid flux estimate (`HM.flux ≠ NA`)
    - The LM flux estimate is above the minimal detectable flux (`|LM.flux| ≥ MDF.lim`)
    - The HM curvature parameter **κ** is below the theoretical maximum (`HM.k < k.max`)
-   - The ratio between HM and LM flux estimates (**g-factor**) is below a gas-specific threshold  
-     - CO₂: **g-factor < 4**  
-     - CH₄: **g-factor < 3**
+   - The ratio between HM and LM flux estimates (**g-factor**) is below the gas-specific threshold:  
+     - CO₂ g-factor threshold = 4 (`g.fact < 4`)
+     - CH₄ g-factor threshold = 3 (`g.fact < 3`)
    - The Akaike Information Criterion corrected for small sample size (**AICc**) of the HM model is lower than or equal to that of the LM model (`HM.AICc ≤ LM.AICc`)
    - The mean absolute error (**MAE**) of the HM model is at least **5% lower** than that of the LM model (`HM.MAE ≤ 0.95 × LM.MAE`)
 
