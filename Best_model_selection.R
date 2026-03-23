@@ -1,13 +1,13 @@
-# ==============================================================================
+# =============================================================================-
 # Selection Criteria for Best Flux Model
-# ==============================================================================
+# =============================================================================-
 
 # Author  : Miguel Cabrera
 # Project : RESTORE4Cs
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 
-# DESCRIPTION
-# ------------------------------------------------------------------------------
+# DESCRIPTION -----
+# -----------------------------------------------------------------------------=
 # This script selects the most appropriate flux estimation model for each
 # static chamber incubation (CO2 and CH4) identified by UniqueID.
 #
@@ -26,7 +26,7 @@
 # incubation plots generated in the flux calculation step.
 
 # INPUT DATA
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # Source:
 #   https://doi.org/10.5281/zenodo.18803756
 #   (and outputs from Fluxes_from_RData.R)
@@ -42,12 +42,12 @@
 #   - PDF incubation plots (Results/Incubation_plots)
 
 # OUTPUT FILES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 #   - ch4_bestflux.csv
 #   - co2_bestflux.csv
 
 # WORKFLOW OVERVIEW
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # The script is divided into two parallel sections:
 #   1. CH4 model selection
 #   2. CO2 model selection
@@ -59,7 +59,7 @@
 #   - Final model choice is recorded per incubation
 
 # SELECTION LOGIC
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # The best model (best.model) is selected using the following sequential rules.
 #
 # NOTE:
@@ -68,12 +68,12 @@
 # - For valid CO2 cases, only LM and HM models are considered
 
 # STEP 0 — Data quality check
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # IF time-series is flagged as "discard":
 #   → best.model = "None appropriate"
 
 # STEP 1 — Ebullition detected (CH4 only)
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # IF bubbles are present AND LM.r2 < 0.99:
 #   → best.model = "total.flux"
 #
@@ -81,14 +81,14 @@
 #   → best.model = "LM"
 
 # STEP 2 — No ebullition (diffusive dynamics only)
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # Apply "goFlux criteria" to choose between LM and HM.
 #
 # HM is selected ONLY if all conditions below are satisfied.
 # Otherwise, LM is selected by default.
 
 # HM SELECTION REQUIREMENTS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # 1. HM.flux must exist
 #    - If NA → best.model = "LM"
 #
@@ -111,7 +111,7 @@
 # If ANY of the above conditions are not met:
 #   → best.model = "LM"
 
-# ==============================================================================
+# =============================================================================-
 
 
 # Clear Global Environment

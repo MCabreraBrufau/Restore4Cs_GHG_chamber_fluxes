@@ -1,15 +1,15 @@
 #Fluxes_from_RData
 
-# ==============================================================================
+# =============================================================================-
 # Fluxes_from_RData
-# ==============================================================================
+# =============================================================================-
 
 # Authors : Miguel Cabrera-Brufau & Camille Minaudo
 # Project : RESTORE4Cs
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 
-# DESCRIPTION
-# ------------------------------------------------------------------------------
+# DESCRIPTION   -----
+# -----------------------------------------------------------------------------=
 # This script uses the `goFlux` package to compute greenhouse gas (GHG) fluxes
 # from raw concentration time-series data (CO2 and CH4), along with auxiliary
 # files.
@@ -28,7 +28,7 @@
 # No modifications are applied to the raw concentration time-series.
 
 # INPUT DATA
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # Source:
 #   https://doi.org/10.5281/zenodo.18803756
 #
@@ -38,7 +38,7 @@
 #   - co2_auxfile.csv
 
 # OUTPUT FILES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # - PDF files:
 #     Incubation plots (CO2 and CH4 separately) for each subsite
 #
@@ -47,7 +47,7 @@
 #     all_ch4flux.csv : CH4 flux estimates + ancillary data
 
 # ANCILLARY DATA (included in all_*flux.csv)
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # Each incubation includes metadata describing:
 #   - Data structure of imported raw time-series
 #   - Incubation duration
@@ -59,7 +59,7 @@
 #       * Maximum Δt
 
 # FLUX ESTIMATION METHODS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # 1. LM.flux (goFlux)
 #    Linear regression-based estimate
 #
@@ -76,12 +76,12 @@
 #    - Includes standard error (SE) for consistency with goFlux outputs
 
 # PACKAGE MANAGEMENT
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------=
 # Package dependencies are managed using `renv`, ensuring reproducibility.
 #
 # This script uses the `goFlux` package from GitHub:
 #   Commit SHA: 67c276d87d984d55b70d7b756ad702d63dbf2038
-# ==============================================================================
+# =============================================================================-
 
 # Clear Global Environment
 rm(list = ls())
